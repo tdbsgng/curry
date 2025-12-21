@@ -8,21 +8,7 @@
 </head>
 <body>
 
-    <div id="header-area">
-        <h2 id="header-title"><span id="displayTable">載入中</span></h2>
-        <button class="history-btn" onclick="showHistory()"><span class="material-icons" style="font-size:18px;margin-right:4px">history</span>查看訂單</button>
-    </div>
-
-    <div id="loading" style="text-align:center; color:white;">加載中...</div>
-    <div id="menu-container"></div>
-
-    <div class="cart-bar">
-        <div>已選 <span id="cart-count">0</span> 項，$<span id="cart-total">0</span></div>
-        <button style="background:var(--accent-color); border:none; padding:10px 20px; border-radius:25px; font-weight:bold;" onclick="showCart()">查看清單</button>
-    </div>
-
-    <div id="cart-modal" class="modal"><div class="modal-content"><h3 style="margin-top:0;">確認訂單</h3><div id="cart-items-list"></div><hr><div style="text-align:right; font-weight:bold;">總計：$<span id="modal-total">0</span></div><button id="submit-btn" style="background:var(--primary-color); width:100%; padding:15px; color:white; border:none; border-radius:10px; margin-top:10px;" onclick="sendOrder()">確認送出點餐</button><button style="background:none; width:100%; border:none; color:#888; margin-top:10px;" onclick="hideModal('cart-modal')">取消</button></div></div>
-    <div id="history-modal" class="modal"><div class="modal-content"><h3>已送出點單</h3><div id="history-list">暫無</div><button style="background:#333; color:white; width:100%; padding:10px; border:none; border-radius:10px; margin-top:15px;" onclick="hideModal('history-modal')">關閉</button></div></div>
+    <div id="container"></div>
 
     <script src="script.js"></script>
 </body>

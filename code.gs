@@ -2,229 +2,262 @@
 // 設定區
 // ==========================================
 const CONFIG = {
-  TELEGRAM_BOT_TOKEN: "你的_TELEGRAM_BOT_TOKEN",
-  OWNER_CHAT_ID: "你的_TELEGRAM_CHAT_ID",
   SHEET_NAME: "訂單紀錄",
-  MENU_SHEET_NAME: "Menu"
+  MENU_SHEET_NAME: "Menu",
+  USER_SHEET_NAME: "password", // 帳號密碼分頁
+  HEADERS: ["訂單ID", "下單時間", "明細", "總金額", "狀態"]
 };
 
 // ==========================================
-// 1. 處理 GET 請求 (提供菜單給前端網頁 或 訂單列表給管理頁面)
+// 1. 處理 GET 請求 (讀取資料)
 // ==========================================
 function doGet(e) {
-  const params = e.parameter;
-  
-  // 如果是管理頁面請求訂單列表
-  if (params.action === 'getOrders') {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-    
-    if (!sheet) {
-      return ContentService.createTextOutput(JSON.stringify([]))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-    
-    const data = sheet.getDataRange().getValues();
-    const orders = [];
-    
-    // 從第二列開始抓取 (跳過標題)
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0]) {
-        orders.push({
-          id: data[i][0],
-          time: data[i][1],
-          table: data[i][2],
-          items: data[i][3],
-          total: data[i][4],
-          status: data[i][5]
-        });
-      }
-    }
-    
-    return ContentService.createTextOutput(JSON.stringify(orders))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  // 預設返回菜單數據
+  const type = e.parameter.type;
+  const user = e.parameter.user;
+  const pass = e.parameter.password;
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CONFIG.MENU_SHEET_NAME);
-  const data = sheet.getDataRange().getValues();
-  const menu = [];
   
-  // 從第二列開始抓取 (跳過標題)
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0]) {
-      menu.push({
-        name: data[i][0],
-        img: data[i][1],
-        price: data[i][2]
-      });
+  try {
+    // --- 公開資訊：不需要驗證 ---
+    if (type === "menu") {
+      const sheet = ss.getSheetByName(CONFIG.MENU_SHEET_NAME);
+      const rawData = sheet.getDataRange().getValues();
+      let data = [];
+      for (let i = 1; i < rawData.length; i++) {
+        if (rawData[i][0]) {
+          data.push({ name: rawData[i][0], img: rawData[i][1], price: rawData[i][2] });
+        }
+      }
+      return createJsonResponse({ status: "success", data: data });
+    } else if (type === "table") {
+      // 讀取特定桌號訂單
+      const tableName = e.parameter.name;
+      data = getSheetDataAsJson(ss.getSheetByName(tableName));
+      return createJsonResponse({ status: "success", data: data });
     }
+
+    // --- 管理端資訊：需要驗證 ---
+    if (!verifyManager(user, pass)) {
+      return createJsonResponse({ status: "error", message: "權限不足，請提供正確的管理員帳密" });
+    }
+
+    let data = [];
+    if (type === "orders") {
+      // 讀取總訂單紀錄
+      data = getSheetDataAsJson(ss.getSheetByName(CONFIG.SHEET_NAME));
+    } 
+
+    return createJsonResponse({ status: "success", data: data });
+
+  } catch (err) {
+    return createJsonResponse({ status: "error", message: err.toString() });
   }
-  
-  return ContentService.createTextOutput(JSON.stringify(menu))
-    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ==========================================
-// 2. 處理 POST 請求 (接收網頁訂單 & TG 按鈕回傳 & 管理頁面更新)
+// 2. 處理 POST 請求 (寫入/更新資料)
 // ==========================================
 function doPost(e) {
   try {
-    const postData = JSON.parse(e.postData.contents);
-
-    // --- 情況 A: 處理來自 Telegram 按鈕的點擊 ---
-    if (postData.callback_query) {
-      return handleTGCallback(postData.callback_query);
-    }
-
-    // --- 情況 B: 處理來自管理頁面的訂單狀態更新 ---
-    if (postData.action === 'updateOrderStatus') {
-      const result = updateOrderStatusInSheet(postData.orderId, postData.status);
-      return ContentService.createTextOutput(JSON.stringify({
-        "result": "success",
-        "message": result
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    // --- 情況 C: 處理來自前端網頁的新訂單 ---
-    const params = postData;
+    const params = JSON.parse(e.postData.contents);
+    const action = params.action;
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-    
-    // 如果表單不存在則建立
-    if (!sheet) {
-      sheet = ss.insertSheet(CONFIG.SHEET_NAME);
-      sheet.appendRow(["訂單ID", "下單時間", "桌號", "明細", "總金額", "狀態"]);
+
+    // 1. 登入行為 (純驗證)
+    if (action === "login") {
+      if (verifyManager(params.user, params.password)) {
+        return createJsonResponse({ result: "success", message: "登入成功" });
+      } else {
+        return createJsonResponse({ result: "error", message: "帳號或密碼錯誤" });
+      }
     }
 
-    // 產生唯一 ID (時間戳36進位 + 隨機碼)
-    const orderId = generateUniqueId();
-    const now = new Date();
-    
-    // 寫入試算表
-    sheet.appendRow([
-      orderId, 
-      now, 
-      params.table, 
-      params.items, 
-      params.total, 
-      "待處理"
-    ]);
+    // 2. 新增訂單 (通常由顧客發起，不強制驗證，或可根據需求調整)
+    if (action === "addOrder") {
+      const orderId = generateUniqueId();
+      const now = new Date();
+      const orderRow = [orderId, now, params.items, params.total, "待處理"];
 
-    // 發送 Telegram 通知 (帶按鈕)
-    sendTelegramWithButtons({
-      orderId: orderId,
-      table: params.table,
-      items: params.items,
-      total: params.total,
-      time: Utilities.formatDate(now, "GMT+8", "HH:mm:ss")
-    });
+      const tableSheet = getOrCreateSheet(ss, params.table.toString());
+      tableSheet.appendRow(orderRow);
 
-    return ContentService.createTextOutput(JSON.stringify({
-      "result": "success", 
-      "orderId": orderId
-    })).setMimeType(ContentService.MimeType.JSON);
+      return createJsonResponse({ result: "success", orderId: orderId });
+    }
+
+    // 3. 更新狀態 (管理端功能：強制驗證)
+    if (action === "updateStatus") {
+      if (!verifyManager(params.user, params.password)) {
+        return createJsonResponse({ result: "error", message: "權限不足" });
+      }
+      const updateCount = updateOrderStatusInAllSheets(params.orderId, params.status);
+      return createJsonResponse({ result: "success", updated: updateCount });
+    }
+
+    // 4. 結帳 (管理端功能：強制驗證)
+    if (action === "checkout") {
+      if (!verifyManager(params.user, params.password)) {
+        return createJsonResponse({ result: "error", message: "權限不足" });
+      }
+      const result = checkoutTable(params.table);
+      return createJsonResponse(result);
+    }
+
+    return createJsonResponse({ result: "error", message: "無效的操作指令" });
 
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({
-      "result": "error", 
-      "message": err.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    return createJsonResponse({ result: "error", message: err.toString() });
   }
 }
 
 // ==========================================
-// 3. 核心功能函式
+// 3. 工具函式
 // ==========================================
 
-/**
- * 產生唯一 Hash ID
- */
-function generateUniqueId() {
-  const part1 = new Date().getTime().toString(36).slice(-4); // 時間戳後4碼
-  const part2 = Math.random().toString(36).substring(2, 5); // 隨機3碼
-  return (part1 + part2).toUpperCase();
-}
-
-/**
- * 發送帶有「狀態更新按鈕」的 TG 通知
- */
-function sendTelegramWithButtons(order) {
-  const url = `https://api.telegram.org/bot${CONFIG.TELEGRAM_BOT_TOKEN}/sendMessage`;
+// 驗證管理者帳密
+function verifyManager(username, password) {
+  if (!username || !password) return false;
   
-  const message = 
-    `🔔 *新訂單通知 [${order.orderId}]*\n` +
-    `━━━━━━━━━━━━━━\n` +
-    `📍 *桌號：* ${order.table}\n` +
-    `🍱 *明細：* ${order.items}\n` +
-    `💰 *金額：* $${order.total}\n` +
-    `⏰ *時間：* ${order.time}\n` +
-    `━━━━━━━━━━━━━━\n` +
-    `請選擇訂單操作：`;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.USER_SHEET_NAME);
+  if (!sheet) return false;
 
-  const keyboard = {
-    inline_keyboard: [
-      [
-        { text: "✅ 已出餐", callback_data: `status:done:${order.orderId}` },
-        { text: "❌ 取消單", callback_data: `status:cancel:${order.orderId}` }
-      ]
-    ]
-  };
-
-  const options = {
-    method: "post",
-    contentType: "application/json",
-    payload: JSON.stringify({
-      chat_id: CONFIG.OWNER_CHAT_ID,
-      text: message,
-      parse_mode: "Markdown",
-      reply_markup: keyboard
-    })
-  };
-
-  UrlFetchApp.fetch(url, options);
-}
-
-/**
- * 處理 TG 按鈕回傳並更新試算表
- */
-function handleTGCallback(callbackQuery) {
-  const data = callbackQuery.data; // 格式 "status:action:orderId"
-  const parts = data.split(':');
-  const action = parts[1];
-  const orderId = parts[2];
-  const callbackId = callbackQuery.id;
-
-  const newStatus = (action === 'done') ? "已出餐" : "已取消";
-  const resultMessage = updateOrderStatusInSheet(orderId, newStatus);
-
-  // 回應 Telegram (讓手機上方彈出小提示)
-  const url = `https://api.telegram.org/bot${CONFIG.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`;
-  UrlFetchApp.fetch(url, {
-    method: "post",
-    contentType: "application/json",
-    payload: JSON.stringify({
-      callback_query_id: callbackId,
-      text: resultMessage
-    })
-  });
-
-  return ContentService.createTextOutput("OK");
-}
-
-/**
- * 更新試算表中的訂單狀態
- */
-function updateOrderStatusInSheet(orderId, status) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME);
   const data = sheet.getDataRange().getValues();
-  
+  // 遍歷每一列比對 A 欄與 B 欄
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === orderId) {
-      sheet.getRange(i + 1, 6).setValue(status); // 第 6 欄是「狀態」
-      return `訂單 ${orderId} 已標記為 ${status}`;
+    if (data[i][0].toString() === username.toString() && 
+        data[i][1].toString() === password.toString()) {
+      return true;
     }
   }
-  return "找不到該訂單 ID";
+  return false;
+}
+
+function getOrCreateSheet(ss, name) {
+  let sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+  }
+  ensureHeaders(sheet);
+  return sheet;
+}
+
+function ensureHeaders(sheet) {
+  const currentHeaders = sheet.getRange(1, 1, 1, CONFIG.HEADERS.length).getValues()[0];
+  const needsUpdate = CONFIG.HEADERS.some((h, i) => h !== currentHeaders[i]);
+  
+  if (needsUpdate) {
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(CONFIG.HEADERS);
+    } else {
+      sheet.getRange(1, 1, 1, CONFIG.HEADERS.length).setValues([CONFIG.HEADERS]);
+    }
+    sheet.setFrozenRows(1);
+  }
+}
+
+function getSheetDataAsJson(sheet) {
+  if (!sheet) return [];
+  ensureHeaders(sheet);
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+
+  const headers = data[0];
+  const rows = [];
+  for (let i = 1; i < data.length; i++) {
+    let obj = {};
+    headers.forEach((header, index) => {
+      let val = data[i][index];
+      // 處理日期格式
+      if (val instanceof Date) {
+        val = Utilities.formatDate(val, "GMT+8", "yyyy-MM-dd HH:mm:ss");
+      }
+      obj[header] = val;
+    });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function updateOrderStatusInAllSheets(orderId, status) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets();
+  let count = 0;
+
+  sheets.forEach(sheet => {
+    const sheetName = sheet.getName();
+    if (sheetName === CONFIG.MENU_SHEET_NAME || sheetName === CONFIG.USER_SHEET_NAME) return;
+    
+    ensureHeaders(sheet);
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const idIdx = headers.indexOf("訂單ID");
+    const statusIdx = headers.indexOf("狀態");
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][idIdx] === orderId) {
+        sheet.getRange(i + 1, statusIdx + 1).setValue(status);
+        count++;
+      }
+    }
+  });
+  return count;
+}
+
+function generateUniqueId() {
+  return "ORD-" + Math.random().toString(36).substring(2, 7).toUpperCase();
+}
+
+function checkoutTable(tableName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const tableSheet = ss.getSheetByName(tableName);
+  if (!tableSheet) {
+    return { result: "error", message: "桌號不存在" };
+  }
+
+  ensureHeaders(tableSheet);
+  const data = tableSheet.getDataRange().getValues();
+  if (data.length <= 1) {
+    return { result: "error", message: "該桌沒有訂單" };
+  }
+
+  const headers = data[0];
+  const idIdx = headers.indexOf("訂單ID");
+  const timeIdx = headers.indexOf("下單時間");
+  const itemsIdx = headers.indexOf("明細");
+  const totalIdx = headers.indexOf("總金額");
+  const statusIdx = headers.indexOf("狀態");
+
+  let completedOrders = [];
+  let totalAmount = 0;
+  let allItems = [];
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][statusIdx] === "已出餐") {
+      completedOrders.push(data[i]);
+      totalAmount += parseFloat(data[i][totalIdx]) || 0;
+      allItems.push(data[i][itemsIdx]);
+    }
+  }
+
+  if (completedOrders.length === 0) {
+    return { result: "error", message: "該桌沒有已完成的訂單" };
+  }
+
+  // 生成新訂單
+  const orderId = generateUniqueId();
+  const now = new Date();
+  const combinedItems = allItems.join("; ");
+  const logSheet = getOrCreateSheet(ss, CONFIG.SHEET_NAME);
+  logSheet.appendRow([orderId, now, combinedItems, totalAmount, "已結帳"]);
+
+  // 清空桌號分頁（保留 header）
+  tableSheet.clearContents();
+  ensureHeaders(tableSheet);
+
+  return { result: "success", orderId: orderId, total: totalAmount };
+}
+
+function createJsonResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }

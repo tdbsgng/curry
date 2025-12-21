@@ -37,13 +37,18 @@ body::before {
 }
 
 #header-title {
-    background: rgba(255, 255, 255, 0.85);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
     display: inline-flex;
     align-items: center;
-    padding: 8px 15px;
-    border-radius: 30px;
-    backdrop-filter: blur(5px);
+    padding: 12px 20px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
     margin: 0;
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #333;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
 
 .history-btn {
@@ -130,9 +135,11 @@ body::before {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0,0,0,0.85); /* 稍微加深背景色 */
     backdrop-filter: blur(8px);
     z-index: 200;
+    justify-content: center;
+    align-items: center;
 }
 
 .modal-content {
@@ -220,7 +227,158 @@ body::before {
     align-items: center;
 }
 
+.order-actions button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.order-actions button:first-child {
+    background: var(--primary-color);
+    color: white;
+}
+
+.order-actions button:last-child {
+    background: #dc3545;
+    color: white;
+}
+
 .status-text {
     font-weight: bold;
     color: #666;
+}
+
+.table-block {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 30px 20px; /* 增加上下內距來撐開高度 */
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    transition: transform 0.2s, background 0.2s;
+    /* 移除 height: 100% */
+}
+
+.table-block:active {
+    transform: scale(0.95); /* 手機點擊回饋 */
+}
+
+.table-block:active {
+    transform: scale(0.95); /* 手機點擊回饋 */
+}
+
+.table-block:hover {
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 12px 25px rgba(0,0,0,0.2);
+}
+
+.table-block:active {
+    transform: scale(0.95); /* 手機點擊回饋 */
+}
+
+#table-selection {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    /* 讓每一列根據內容自動撐開，不要強制分配剩餘高度 */
+    grid-auto-rows: auto; 
+    gap: 20px; /* 統一使用 gap 即可 */
+    padding: 20px;
+    box-sizing: border-box;
+    /* 取消 height: calc(...) */
+}
+
+.manage-controls {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.manage-controls button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.manage-controls button:first-child {
+    background: #666;
+    color: white;
+}
+
+.manage-controls button:last-child {
+    background: var(--primary-color);
+    color: white;
+}
+
+.image-modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: none;
+    width: 95%;      /* 稍微加寬，利用手機空間 */
+    max-width: 95%;
+    padding: 0;
+    border-radius: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* --- 新增以下兩行 --- */
+    margin: 0 !important; 
+    max-height: 90vh !important; 
+}
+
+#modal-image {
+    max-width: 100%;
+    max-height: 90vh; /* 確保圖片不超出手機螢幕 */
+    border-radius: 10px;
+    object-fit: contain; /* 保持比例 */
+    box-shadow: 0 0 20px rgba(0,0,0,0.5); /* 增加陰影讓圖片更顯眼 */
+}
+
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0);
+    color: white;
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+button:hover {
+    filter: brightness(0.8);
+}
+
+.checkout-section {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    box-shadow: var(--card-shadow);
+    text-align: center;
+}
+
+.checkout-section h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.checkout-section p {
+    color: #333;
+    font-size: 1.2em;
+    margin: 10px 0;
 }
