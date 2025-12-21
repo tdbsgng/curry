@@ -4,34 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <style>
-        :root { --primary-color: #28a745; --accent-color: #ffc107; --dark-bg: #1a1a1a; --card-shadow: 0 8px 20px rgba(0,0,0,0.15); }
-        body { font-family: -apple-system, sans-serif; margin: 0; padding: 20px; padding-bottom: 140px; min-height: 100vh; position: relative; }
-        body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: url('https://drive.google.com/thumbnail?id=1Ef0_pLKIXuZNzuNAit1IuVg6X6bgSODT&sz=w1920'); background-size: cover; background-position: center; filter: blur(8px) brightness(0.85); z-index: -1; transform: scale(1.1); }
-        #header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        #header-title { background: rgba(255, 255, 255, 0.85); display: inline-flex; align-items: center; padding: 8px 15px; border-radius: 30px; backdrop-filter: blur(5px); margin: 0; }
-        .history-btn { background: rgba(0, 0, 0, 0.6); color: white; border: none; padding: 8px 12px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; }
-        .menu-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); padding: 12px; border-radius: 15px; margin-bottom: 15px; display: flex; align-items: center; box-shadow: var(--card-shadow); }
-        .item-img { width: 80px; height: 80px; border-radius: 12px; object-fit: cover; margin-right: 15px; background: #fff; }
-        .item-details { flex-grow: 1; }
-        .qty-controls { display: flex; align-items: center; gap: 10px; }
-        .qty-btn { width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .btn-minus { background: #eee; color: #666; }
-        .btn-plus { background: var(--primary-color); color: white; }
-        .cart-bar { position: fixed; bottom: 20px; left: 15px; right: 15px; background: var(--dark-bg); color: white; padding: 12px 20px; border-radius: 50px; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 200; }
-        .modal-content { background: white; margin: 15% auto; width: 85%; max-width: 400px; padding: 25px; border-radius: 20px; max-height: 75vh; overflow-y: auto; }
-        .cart-item-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="header-area">
-        <h2 id="header-title">桌號：<span id="displayTable">載入中</span></h2>
-        <button class="history-btn" onclick="showHistory()"><span class="material-icons" style="font-size:18px;margin-right:4px">history</span>已送單</button>
+        <h2 id="header-title"><span id="displayTable">載入中</span></h2>
+        <button class="history-btn" onclick="showHistory()"><span class="material-icons" style="font-size:18px;margin-right:4px">history</span>查看訂單</button>
     </div>
 
-    <div id="loading" style="text-align:center; color:white;">菜單加載中...</div>
+    <div id="loading" style="text-align:center; color:white;">加載中...</div>
     <div id="menu-container"></div>
 
     <div class="cart-bar">
@@ -42,95 +24,6 @@
     <div id="cart-modal" class="modal"><div class="modal-content"><h3 style="margin-top:0;">確認訂單</h3><div id="cart-items-list"></div><hr><div style="text-align:right; font-weight:bold;">總計：$<span id="modal-total">0</span></div><button id="submit-btn" style="background:var(--primary-color); width:100%; padding:15px; color:white; border:none; border-radius:10px; margin-top:10px;" onclick="sendOrder()">確認送出點餐</button><button style="background:none; width:100%; border:none; color:#888; margin-top:10px;" onclick="hideModal('cart-modal')">取消</button></div></div>
     <div id="history-modal" class="modal"><div class="modal-content"><h3>已送出點單</h3><div id="history-list">暫無</div><button style="background:#333; color:white; width:100%; padding:10px; border:none; border-radius:10px; margin-top:15px;" onclick="hideModal('history-modal')">關閉</button></div></div>
 
-    <script>
-        // --- 設定區 ---
-        const API_URL = "https://script.google.com/macros/s/AKfycbwL21_dUA6HbsAOkqBDdRuvXUCZgTdxNw8R0s9DrQXIIcVSq4yd-ttInuY6mZGMsP1r/exec"; 
-        
-        let cart = {};
-        let menuDataCache = [];
-        let orderHistory = [];
-
-        // 取得網址參數中的桌號
-        const urlParams = new URLSearchParams(window.location.search);
-        document.getElementById('displayTable').innerText = urlParams.get('table') || "未選取";
-
-        // 初始化：向後端抓取菜單
-        fetch(API_URL).then(res => res.json()).then(data => {
-            menuDataCache = data;
-            renderMenu();
-        }).catch(() => { document.getElementById('loading').innerText = "無法載入菜單，請檢查後端設定"; });
-
-        function renderMenu() {
-            const container = document.getElementById('menu-container');
-            document.getElementById('loading').style.display = 'none';
-            container.innerHTML = menuDataCache.map(item => {
-                const qty = cart[item.name]?.qty || 0;
-                let img = item.img?.includes("drive.google.com") ? "https://drive.google.com/thumbnail?id=" + item.img.match(/[-\w]{25,}/)[0] + "&sz=w400" : (item.img || "");
-                return `<div class="menu-card">
-                    <img src="${img}" class="item-img">
-                    <div class="item-details"><strong>${item.name}</strong><br><span style="color:var(--primary-color)">$${item.price}</span></div>
-                    <div class="qty-controls">
-                        ${qty > 0 ? `<button class="qty-btn btn-minus" onclick="updateQty('${item.name}', -1)">-</button><span class="qty-num">${qty}</span>` : ''}
-                        <button class="qty-btn btn-plus" onclick="updateQty('${item.name}', 1)">+</button>
-                    </div>
-                </div>`;
-            }).join('');
-            updateCartBar();
-        }
-
-        function updateQty(name, change) {
-            if (!cart[name]) cart[name] = { price: menuDataCache.find(i => i.name === name).price, qty: 0 };
-            cart[name].qty += change;
-            if (cart[name].qty <= 0) delete cart[name];
-            renderMenu();
-            if(document.getElementById('cart-modal').style.display === 'block') showCart();
-        }
-
-        function updateCartBar() {
-            let count = 0, total = 0;
-            for (let n in cart) { count += cart[n].qty; total += cart[n].price * cart[n].qty; }
-            document.getElementById('cart-count').innerText = count;
-            document.getElementById('cart-total').innerText = total;
-        }
-
-        function showCart() {
-            let listHtml = "", total = 0;
-            for (let n in cart) {
-                total += cart[n].price * cart[n].qty;
-                listHtml += `<div class="cart-item-row"><span>${n} x ${cart[n].qty}</span><span>$${cart[n].price * cart[n].qty}</span></div>`;
-            }
-            document.getElementById('cart-items-list').innerHTML = listHtml || "購物車空空如也";
-            document.getElementById('modal-total').innerText = total;
-            document.getElementById('cart-modal').style.display = 'block';
-        }
-
-        function sendOrder() {
-            const items = Object.keys(cart).map(n => `${n}x${cart[n].qty}`).join(", ");
-            if (!items) return;
-            const btn = document.getElementById('submit-btn');
-            btn.disabled = true; btn.innerText = "傳送中...";
-
-            fetch(API_URL, {
-                method: "POST",
-                body: JSON.stringify({
-                    table: document.getElementById('displayTable').innerText,
-                    items: items,
-                    total: document.getElementById('modal-total').innerText
-                })
-            }).then(() => {
-                alert('訂單已送出！');
-                orderHistory.push({ time: new Date().toLocaleTimeString(), details: items });
-                cart = {}; renderMenu(); hideModal('cart-modal');
-                btn.disabled = false; btn.innerText = "確認送出點餐";
-            }).catch(e => { alert("送單失敗"); btn.disabled = false; });
-        }
-
-        function showHistory() {
-            document.getElementById('history-list').innerHTML = orderHistory.map(h => `<div><small>${h.time}</small><br>${h.details}</div><hr>`).join('') || "尚無紀錄";
-            document.getElementById('history-modal').style.display = 'block';
-        }
-
-        function hideModal(id) { document.getElementById(id).style.display = 'none'; }
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
