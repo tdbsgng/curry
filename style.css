@@ -142,6 +142,11 @@ body::before {
     align-items: center;
 }
 
+/* 結帳確認視窗需要顯示在最上層 */
+#checkout-modal {
+    z-index: 300;
+}
+
 .modal-content {
     background: white;
     margin: 15% auto;
@@ -253,17 +258,50 @@ body::before {
 .table-block {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
-    padding: 30px 20px; /* 增加上下內距來撐開高度 */
+    padding: 0;
     border-radius: 15px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
     box-shadow: 0 10px 30px rgba(0,0,0,0.18);
-    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.table-block-content {
+    flex-grow: 1;
+    padding: 30px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 18px;
     font-weight: bold;
-    transition: transform 0.2s, background 0.2s;
-    /* 移除 height: 100% */
+    cursor: pointer;
+}
+
+.table-add-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    width: 50px;
+    height: 100%;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.table-add-btn:hover {
+    background: #218838;
+}
+
+.table-add-btn:active {
+    background: #1e7e34;
 }
 
 .table-block:active {
@@ -381,4 +419,69 @@ button:hover {
     color: #333;
     font-size: 1.2em;
     margin: 10px 0;
+}
+
+/* 菜單模態框樣式 */
+.menu-modal-content {
+    max-height: 85vh;
+    width: 90%;
+    max-width: 500px;
+}
+
+.menu-card-small {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    padding: 10px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.item-img-small {
+    width: 60px;
+    height: 60px;
+    border-radius: 10px;
+    object-fit: cover;
+    margin-right: 12px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.item-details-small {
+    flex-grow: 1;
+    font-size: 14px;
+}
+
+.menu-modal-cart-bar {
+    background: var(--dark-bg);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 10px;
+    text-align: center;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+/* 訂單模態框樣式 */
+.orders-modal-content {
+    max-height: 85vh;
+    width: 90%;
+    max-width: 600px;
+}
+
+.orders-modal-footer {
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+}
+
+.orders-modal-total {
+    text-align: center;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: rgba(40, 167, 69, 0.1);
+    border-radius: 8px;
 }
