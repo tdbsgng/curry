@@ -240,29 +240,64 @@ async function showMenuModalForTable(table) {
     currentTableForMenu = table;
     modalCart = {}; // 重置模態框購物車
     
-    // 確保菜單資料已載入
-    if (menuDataCache.length === 0) {
-        try {
-            const res = await fetchMenu();
-            if (res.status === "success") {
-                menuDataCache = res.data;
-            }
-        } catch (error) {
-            await customAlert("無法載入菜單");
-            return;
+    // 如果是外帶自取，先檢查手機號碼
+    if (table === 'out') {
+        const phone = getPhoneNumber();
+        if (!phone) {
+            // 如果沒有手機號碼，先顯示手機號碼 modal（必填）
+            return new Promise((resolve) => {
+                showPhoneModal(true);
+                // 使用全局變數來存儲回調，讓 submitPhoneNumber 可以調用
+                window._phoneSubmitCallback = async () => {
+                    // 手機號碼輸入完成後，繼續顯示菜單 modal
+                    window._phoneSubmitCallback = null;
+                    await showMenuModalForTableAfterPhoneCheck(table);
+                    resolve();
+                };
+            });
         }
+    }
+    
+    // 顯示菜單 modal
+    await showMenuModalForTableAfterPhoneCheck(table);
+}
+
+/**
+ * 顯示菜單模態框（手機號碼檢查後）
+ * @param {string} table - 桌號
+ */
+async function showMenuModalForTableAfterPhoneCheck(table) {
+    // 更新標題
+    const displayLabel = table === 'out' ? "外帶自取" : table + " 桌";
+    document.getElementById('menu-modal-title').innerText = `新增餐點 - ${displayLabel}`;
+    
+    // 如果是外帶自取，檢查手機號碼
+    if (table === 'out') {
+        const phone = getPhoneNumber();
+        if (!phone) {
+            // 沒有手機號碼，顯示手機輸入界面（必填）
+            return new Promise((resolve) => {
+                showPhoneModal(true);
+                // 使用全局變數來存儲回調，讓 submitPhoneNumber 可以調用
+                window._phoneSubmitCallback = async () => {
+                    // 手機號碼輸入完成後，重新顯示菜單 modal
+                    window._phoneSubmitCallback = null;
+                    await showMenuModalForTableAfterPhoneCheck(table);
+                    resolve();
+                };
+            });
+        } else {
+            // 有手機號碼，顯示在modal中
+            displayPhoneNumberInModal(phone);
+        }
+    } else {
+        // 不是外帶自取，隱藏手機號碼顯示
+        hidePhoneNumberInModal();
     }
     
     // 顯示模態框
     const modal = document.getElementById('menu-modal');
     modal.style.display = 'block';
-    
-    // 更新標題
-    const displayLabel = table === 'out' ? "外帶自取" : table + " 桌";
-    document.getElementById('menu-modal-title').innerText = `新增餐點 - ${displayLabel}`;
-    
-    // 渲染菜單
-    renderMenuInModal();
     
     // 添加點擊背景關閉功能
     const closeModal = (e) => {
@@ -272,29 +307,59 @@ async function showMenuModalForTable(table) {
         }
     };
     modal.addEventListener('click', closeModal);
+    
+    // 直接調用模組化菜單頁面
+    await initMenuPage({
+        containerId: 'menu-modal-container',
+        cartObj: modalCart,
+        updateQtyFunc: 'updateModalQty',
+        updateCartBarFunc: updateModalCartBar,
+        onError: (error) => {
+            console.error('載入菜單失敗:', error);
+        }
+    });
 }
 
 /**
- * 在模態框中渲染菜單
+ * 在menu-modal中顯示手機號碼（使用統一的顯示函數，與user端完全相同的樣式）
+ * @param {string} phone - 手機號碼
+ */
+function displayPhoneNumberInModal(phone) {
+    // 使用與user端完全相同的樣式和尺寸
+    displayPhoneNumberGeneric('menu-modal-phone-display', phone, 'editPhoneNumberInModal');
+}
+
+/**
+ * 隱藏menu-modal中的手機號碼顯示
+ */
+function hidePhoneNumberInModal() {
+    const phoneDisplay = document.getElementById('menu-modal-phone-display');
+    if (phoneDisplay) {
+        phoneDisplay.style.display = 'none';
+    }
+}
+
+/**
+ * 在menu-modal中編輯手機號碼
+ */
+function editPhoneNumberInModal() {
+    showPhoneModal(false); // 非必填，可以關閉
+    // 設置回調，當手機號碼更新後，更新modal中的顯示
+    window._phoneSubmitCallback = () => {
+        const phone = getPhoneNumber();
+        if (phone) {
+            displayPhoneNumberInModal(phone);
+        }
+        window._phoneSubmitCallback = null;
+    };
+}
+
+/**
+ * 在模態框中渲染菜單（重複使用 user 菜單的代碼）
+ * 現在直接調用模組化菜單頁面，此函數保留以向後兼容
  */
 function renderMenuInModal() {
-    const menuContainer = document.getElementById('menu-modal-container');
-    menuContainer.innerHTML = menuDataCache.map(item => {
-        const qty = modalCart[item.name]?.qty || 0;
-        let img = item.img?.includes("drive.google.com") ? "https://drive.google.com/thumbnail?id=" + item.img.match(/[-\w]{25,}/)[0] + "&sz=w200" : (item.img || "");
-        return `<div class="menu-card-small">
-            <img src="${img}" class="item-img-small" onclick="showImageModal('${img}')">
-            <div class="item-details-small">
-                <strong>${item.name}</strong><br>
-                <span style="color:var(--primary-color)">$${item.price}</span>
-            </div>
-            <div class="qty-controls">
-                ${qty > 0 ? `<button class="qty-btn btn-minus" onclick="updateModalQty('${item.name}', -1)">-</button><span class="qty-num">${qty}</span>` : ''}
-                <button class="qty-btn btn-plus" onclick="updateModalQty('${item.name}', 1)">+</button>
-            </div>
-        </div>`;
-    }).join('');
-    updateModalCartBar();
+    renderMenuGeneric('menu-modal-container', modalCart, 'updateModalQty', updateModalCartBar);
 }
 
 /**
@@ -309,7 +374,49 @@ function updateModalQty(name, change) {
     }
     modalCart[name].qty += change;
     if (modalCart[name].qty <= 0) delete modalCart[name];
-    renderMenuInModal();
+    
+    // 只更新數量顯示，不重新渲染整個列表
+    updateModalQtyDisplay(name);
+    updateModalCartBar();
+    if(document.getElementById('menu-modal-cart-modal').style.display === 'block') showModalCart();
+}
+
+/**
+ * 更新單個商品的數量顯示（不重新渲染整個列表）
+ * @param {string} name - 商品名稱
+ */
+function updateModalQtyDisplay(name) {
+    const qty = modalCart[name]?.qty || 0;
+    const menuContainer = document.getElementById('menu-modal-container');
+    const itemCards = menuContainer.querySelectorAll('.menu-card');
+    
+    itemCards.forEach(card => {
+        const itemNameEl = card.querySelector('.item-details strong');
+        if (itemNameEl && itemNameEl.textContent === name) {
+            const qtyControls = card.querySelector('.qty-controls');
+            if (qty > 0) {
+                // 如果數量 > 0，顯示減號按鈕和數量
+                if (!qtyControls.querySelector('.btn-minus')) {
+                    qtyControls.innerHTML = `
+                        <button class="qty-btn btn-minus" onclick="updateModalQty('${name}', -1)">-</button>
+                        <span class="qty-num">${qty}</span>
+                        <button class="qty-btn btn-plus" onclick="updateModalQty('${name}', 1)">+</button>
+                    `;
+                } else {
+                    // 只更新數量數字
+                    const qtyNum = qtyControls.querySelector('.qty-num');
+                    if (qtyNum) {
+                        qtyNum.textContent = qty;
+                    }
+                }
+            } else {
+                // 如果數量 = 0，只顯示加號按鈕
+                qtyControls.innerHTML = `
+                    <button class="qty-btn btn-plus" onclick="updateModalQty('${name}', 1)">+</button>
+                `;
+            }
+        }
+    });
 }
 
 /**
@@ -326,6 +433,20 @@ function updateModalCartBar() {
 }
 
 /**
+ * 顯示模態框購物車
+ */
+function showModalCart() {
+    let listHtml = "", total = 0;
+    for (let n in modalCart) {
+        total += modalCart[n].price * modalCart[n].qty;
+        listHtml += `<div class="cart-item-row"><span>${n} x ${modalCart[n].qty}</span><span>$${modalCart[n].price * modalCart[n].qty}</span></div>`;
+    }
+    document.getElementById('menu-modal-cart-items-list').innerHTML = listHtml || "購物車空空如也";
+    document.getElementById('menu-modal-cart-total-display').innerText = total;
+    document.getElementById('menu-modal-cart-modal').style.display = 'block';
+}
+
+/**
  * 從模態框送出訂單
  */
 async function sendOrderFromModal() {
@@ -334,10 +455,31 @@ async function sendOrderFromModal() {
         return;
     }
     
+    // 如果是外帶自取，檢查手機號碼
+    if (currentTableForMenu === 'out') {
+        const phone = getPhoneNumber();
+        if (!phone) {
+            // 如果沒有手機號碼，顯示 modal 要求輸入
+            await new Promise((resolve) => {
+                showPhoneModal(true);
+                // 使用全局變數來存儲回調，讓 submitPhoneNumber 可以調用
+                window._phoneSubmitCallback = () => {
+                    window._phoneSubmitCallback = null;
+                    resolve();
+                };
+            });
+            
+            // 再次檢查（用戶可能關閉了 modal，但必填時不應該能關閉）
+            if (!getPhoneNumber()) {
+                return; // 如果還是沒有手機號碼，取消送出
+            }
+        }
+    }
+    
     const items = Object.keys(modalCart).map(n => `${n}x${modalCart[n].qty}`).join(", ");
     const total = Object.keys(modalCart).reduce((sum, n) => sum + modalCart[n].price * modalCart[n].qty, 0);
     
-    const btn = document.getElementById('menu-modal-submit-btn');
+    const btn = document.getElementById('menu-modal-cart-submit-btn');
     btn.disabled = true; 
     btn.innerText = "傳送中...";
 
@@ -347,6 +489,7 @@ async function sendOrderFromModal() {
         if (res.result === "success") {
             await customAlert('訂單已送出！單號：' + res.orderId);
             modalCart = {};
+            hideModal('menu-modal-cart-modal');
             hideModal('menu-modal');
             // 如果當前正在查看該桌的訂單模態框，重新載入
             if (currentViewingTable === currentTableForMenu) {

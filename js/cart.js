@@ -12,8 +12,49 @@ function updateQty(name, change) {
     }
     cart[name].qty += change;
     if (cart[name].qty <= 0) delete cart[name];
-    renderMenu();
+    
+    // 只更新數量顯示，不重新渲染整個列表
+    updateQtyDisplay(name);
+    updateCartBar();
     if(document.getElementById('cart-modal').style.display === 'block') showCart();
+}
+
+/**
+ * 更新單個商品的數量顯示（不重新渲染整個列表）
+ * @param {string} name - 商品名稱
+ */
+function updateQtyDisplay(name) {
+    const qty = cart[name]?.qty || 0;
+    const menuContainer = document.getElementById('menu-container');
+    const itemCards = menuContainer.querySelectorAll('.menu-card');
+    
+    itemCards.forEach(card => {
+        const itemNameEl = card.querySelector('.item-details strong');
+        if (itemNameEl && itemNameEl.textContent === name) {
+            const qtyControls = card.querySelector('.qty-controls');
+            if (qty > 0) {
+                // 如果數量 > 0，顯示減號按鈕和數量
+                if (!qtyControls.querySelector('.btn-minus')) {
+                    qtyControls.innerHTML = `
+                        <button class="qty-btn btn-minus" onclick="updateQty('${name}', -1)">-</button>
+                        <span class="qty-num">${qty}</span>
+                        <button class="qty-btn btn-plus" onclick="updateQty('${name}', 1)">+</button>
+                    `;
+                } else {
+                    // 只更新數量數字
+                    const qtyNum = qtyControls.querySelector('.qty-num');
+                    if (qtyNum) {
+                        qtyNum.textContent = qty;
+                    }
+                }
+            } else {
+                // 如果數量 = 0，只顯示加號按鈕
+                qtyControls.innerHTML = `
+                    <button class="qty-btn btn-plus" onclick="updateQty('${name}', 1)">+</button>
+                `;
+            }
+        }
+    });
 }
 
 /**

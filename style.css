@@ -34,6 +34,7 @@ body::before {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    min-height: 60px; /* 確保與左側標題高度一致 */
 }
 
 #header-title {
@@ -55,11 +56,20 @@ body::before {
     background: rgba(0, 0, 0, 0.6);
     color: white;
     border: none;
-    padding: 8px 12px;
+    padding: 4px 12px;
     border-radius: 20px;
     cursor: pointer;
     display: flex;
     align-items: center;
+    transition: all 0.2s;
+    font-size: 14px;
+    line-height: 1.2;
+    height: fit-content;
+}
+
+.history-btn:hover {
+    background: rgba(0, 0, 0, 0.7);
+    transform: translateY(-1px);
 }
 
 .menu-card {
@@ -67,10 +77,11 @@ body::before {
     backdrop-filter: blur(10px);
     padding: 12px;
     border-radius: 15px;
-    margin-bottom: 15px;
+    margin: 0 auto 15px auto;
     display: flex;
     align-items: center;
-    box-shadow: var(--card-shadow);
+    width: 80%;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.4);
 }
 
 .item-img {
@@ -150,12 +161,14 @@ body::before {
 .modal-content {
     background: white;
     margin: 15% auto;
-    width: 85%;
-    max-width: 400px;
+    width: 90%;
+    max-width: 90%;
     padding: 25px;
     border-radius: 20px;
     max-height: 75vh;
     overflow-y: auto;
+    position: relative;
+    box-sizing: border-box;
 }
 
 .cart-item-row {
@@ -363,8 +376,8 @@ body::before {
     left: 50%;
     transform: translate(-50%, -50%);
     background: none;
-    width: 95%;      /* 稍微加寬，利用手機空間 */
-    max-width: 95%;
+    width: 90%;
+    max-width: 90%;
     padding: 0;
     border-radius: 0;
     display: flex;
@@ -372,7 +385,8 @@ body::before {
     align-items: center;
     /* --- 新增以下兩行 --- */
     margin: 0 !important; 
-    max-height: 90vh !important; 
+    max-height: 90vh !important;
+    box-sizing: border-box;
 }
 
 #modal-image {
@@ -387,13 +401,24 @@ body::before {
     position: absolute;
     top: 10px;
     right: 10px;
-    background: rgba(0,0,0,0);
-    color: white;
+    background: none;
+    color: #000;
     border: none;
     width: 30px;
     height: 30px;
     border-radius: 50%;
     cursor: pointer;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: opacity 0.2s;
+    font-weight: bold;
+}
+
+.close-btn:hover {
+    opacity: 0.6;
 }
 
 button:hover {
@@ -425,7 +450,15 @@ button:hover {
 .menu-modal-content {
     max-height: 85vh;
     width: 90%;
-    max-width: 500px;
+    max-width: 90%;
+    box-sizing: border-box;
+}
+
+/* Modal 中的菜單卡片樣式 - 增加視覺區分 */
+#menu-modal-container .menu-card {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
 
 .menu-card-small {
@@ -457,18 +490,21 @@ button:hover {
 .menu-modal-cart-bar {
     background: var(--dark-bg);
     color: white;
-    padding: 10px 15px;
-    border-radius: 10px;
-    text-align: center;
+    padding: 12px 20px;
+    border-radius: 50px;
     margin-bottom: 10px;
     font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 /* 訂單模態框樣式 */
 .orders-modal-content {
     max-height: 85vh;
     width: 90%;
-    max-width: 600px;
+    max-width: 90%;
+    box-sizing: border-box;
 }
 
 .orders-modal-footer {
@@ -484,4 +520,121 @@ button:hover {
     padding: 10px;
     background: rgba(40, 167, 69, 0.1);
     border-radius: 8px;
+}
+
+/* 手機號碼 modal 樣式 */
+#phone-modal {
+    z-index: 400;
+}
+
+#phone-modal .modal-content {
+    max-width: 400px;
+}
+
+#phone-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+}
+
+/* 手機號碼編輯按鈕樣式 */
+.phone-edit-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    min-width: 40px;
+    height: 40px;
+}
+
+.phone-edit-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.phone-edit-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* user端電話顯示區塊樣式 - 高度為桌號區塊的一半，無編輯按鈕背景 */
+#phone-display {
+    padding: 2px 8px !important;
+    height: auto !important;
+    min-height: auto !important;
+}
+
+#phone-display .phone-edit-btn {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    min-width: auto !important;
+    height: auto !important;
+    margin-left: 4px !important;
+}
+
+#phone-display .phone-edit-btn:hover {
+    background: none !important;
+    border: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+    opacity: 0.8;
+}
+
+#phone-display .phone-edit-btn:active {
+    transform: none !important;
+    box-shadow: none !important;
+    opacity: 0.6;
+}
+
+/* menu-modal 手機號碼顯示區域優化 - 使用與user端完全相同的樣式 */
+#menu-modal-phone-display {
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    padding: 2px 8px !important;
+    border-radius: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s;
+    font-size: 14px;
+    line-height: 1.2;
+    height: fit-content;
+    min-height: auto;
+    width: fit-content;
+    margin-bottom: 10px;
+}
+
+#menu-modal-phone-display .phone-edit-btn {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    min-width: auto !important;
+    height: auto !important;
+    margin-left: 4px !important;
+}
+
+#menu-modal-phone-display .phone-edit-btn:hover {
+    background: none !important;
+    border: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+    opacity: 0.8;
+}
+
+#menu-modal-phone-display .phone-edit-btn:active {
+    transform: none !important;
+    box-shadow: none !important;
+    opacity: 0.6;
 }
